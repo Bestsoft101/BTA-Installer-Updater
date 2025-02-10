@@ -7,8 +7,12 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -78,7 +82,7 @@ public class Utils {
 		return frame;
 	}
 	
-	public static void downloadFileAndPrintProgress(String url, File file) {
+	public static void downloadFileAndPrintProgress(String url, File file, ProgressListener progressListener) {
 		file = file.getAbsoluteFile();
 		File parent = file.getParentFile();
 		if(!parent.exists()) {
@@ -109,17 +113,26 @@ public class Utils {
 				}
 				downloadedFileSize += read;
 				out.write(cache, 0, read);
+
+				float progress = (float) (downloadedFileSize / (double) completeFileSize);
 				
 				long now = System.currentTimeMillis();
 				if(now > lastPrint + 500) {
 					lastPrint = now;
 					
-					int percent = (int) ((downloadedFileSize / (double) completeFileSize) * 100);
+					int percent = (int) (progress * 100);
 					System.out.println("Downloading: " + percent + "%");
+				}
+				
+				if(progressListener != null) {
+					progressListener.progressChanged(progress);
 				}
 			}
 			
 			System.out.println("Finished Downloading!");
+			if(progressListener != null) {
+				progressListener.progressChanged(1.0f);
+			}
 		}catch (Exception e) {
 			throw new RuntimeException("Error downloading file from '" + url + "' to '" + file.getAbsolutePath() + "'!", e);
 		}finally {
@@ -133,6 +146,83 @@ public class Utils {
 				out.close();
 			}catch (Exception e) {}
 		}
+	}
+	
+	public static void sleep(long time) {
+		try {
+			Thread.sleep(time);
+		}catch (Exception e) {}
+	}
+	
+	public static String createErrorLog(Throwable throwable) {
+		StringBuilder str = new StringBuilder();
+		
+		createErrorLog(str, throwable);
+		
+		return str.toString();
+	}
+	
+	public static void createErrorLog(StringBuilder str, Throwable throwable) {
+		str.append(throwable.getClass().getName());
+		
+		String message = throwable.getMessage();
+		if(message != null) {
+			str.append(": ").append(message);
+		}
+		
+		StackTraceElement[] stackTrace = throwable.getStackTrace();
+		
+		for(int i=0; i < stackTrace.length; i++) {
+			StackTraceElement element = stackTrace[i];
+			
+			str.append('\n').append("    at ").append(element);
+		}
+		
+		Throwable cause = throwable.getCause();
+		if(cause != null) {
+			str.append("\nCaused by: ");
+			
+			createErrorLog(str, cause);
+		}
+	}
+	
+	public static String readMainClassFromJarFile(File file) {
+		ZipFile zipFile = null;
+		try {
+			zipFile = new ZipFile(file);
+			
+			ZipEntry entry = zipFile.getEntry("META-INF/MANIFEST.MF");
+			if(entry == null) {
+				throw new RuntimeException("Jar file is missing manifest!");
+			}
+			
+			InputStream in = null;
+			try {
+				in = zipFile.getInputStream(entry);
+				
+				Map<String, String> manifestData = ConfigUtil.loadProperties(in, ':');
+				String mainClass = manifestData.get("Main-Class");
+				if(mainClass == null) {
+					throw new RuntimeException("Manifest is missing main class!");
+				}
+				
+				return mainClass.trim();
+			}finally {
+				in.close();
+			}
+		}catch (Exception e) {
+			throw new RuntimeException("Could not read main class: " + file.getAbsolutePath(), e);
+		}finally {
+			try {
+				zipFile.close();
+			}catch (Exception e) {}
+		}
+	}
+	
+	public static interface ProgressListener {
+		
+		public void progressChanged(float progress);
+		
 	}
 	
 }
