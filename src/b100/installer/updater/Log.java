@@ -11,10 +11,18 @@ public class Log {
 	private static PrintStream previousOut;
 	private static PrintStream previousErr;
 	
+	private static PrintStream customOut;
+	private static PrintStream customErr;
+	
 	private static OutputStream out;
 	private static OutputStreamWriter writer;
 	
-	public static void enable(File logFile) {
+	private static boolean isSetup;
+	
+	public static void setup(File logFile) {
+		if(isSetup) {
+			close();
+		}
 		try {
 			previousOut = System.out;
 			previousErr = System.err;
@@ -28,38 +36,52 @@ public class Log {
 			out = new FileOutputStream(logFile);
 			writer = new OutputStreamWriter(out);
 			
-			System.setOut(new LogPrintStream(System.out, "[OUT] "));
-			System.setErr(new LogPrintStream(System.err, "[ERR] "));
+			customOut = new LogPrintStream(System.out, "[OUT] ");
+			customErr = new LogPrintStream(System.out, "[ERR] ");
+			
+			isSetup = true;
 		}catch (Exception e) {
 			throw new RuntimeException("Setting up log: " + logFile.getAbsolutePath());
 		}
 	}
 	
+	public static void enable() {
+		if(!isSetup) {
+			throw new RuntimeException("Log is not set up!");
+		}
+		
+		System.setOut(customOut);
+		System.setErr(customErr);
+	}
+	
 	public static void disable() {
-		if(previousOut != null) {
-			System.setOut(previousOut);
-			previousOut = null;
+		if(!isSetup) {
+			throw new RuntimeException("Log is not set up!");
 		}
-		if(previousErr != null) {
-			System.setErr(previousErr);
-			previousErr = null;
+		
+		System.setOut(previousOut);
+		System.setErr(previousErr);
+	}
+	
+	public static void close() {
+		if(!isSetup) {
+			return;
 		}
-		if(out != null) {
-			try {
-				out.close();
-			}catch (Exception e) {
-				e.printStackTrace();
-			}
-			out = null;
-		}
-		if(writer != null) {
-			try {
-				writer.close();
-			}catch (Exception e) {
-				e.printStackTrace();
-			}
-			writer = null;
-		}
+		
+		System.setOut(previousOut);
+		System.setErr(previousErr);
+		
+		try {
+			out.close();
+		}catch (Exception e) {}
+		try {
+			writer.close();
+		}catch (Exception e) {}
+		
+		out = null;
+		writer = null;
+		
+		isSetup = false;
 	}
 	
 	static class LogPrintStream extends PrintStream {
@@ -165,7 +187,5 @@ public class Log {
 				e.printStackTrace();
 			}
 		}
-		
 	}
-	
 }

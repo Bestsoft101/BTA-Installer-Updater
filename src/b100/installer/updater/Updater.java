@@ -20,7 +20,7 @@ public class Updater {
 	private static File logFile;
 	private static Window window;
 	private static File installerFileOverride = null;
-	private static File localVersionFile = new File("latest.info");
+	private static File localVersionFile;
 	
 	public static boolean isOffline() {
 		return offline;
@@ -97,9 +97,15 @@ public class Updater {
 				installerDirectory.getAbsolutePath()
 			};
 			
-			Log.disable();
+			try {
+				Log.disable();
+				mainMethod.invoke(null, new Object[] {stringArgs});	
+			}catch (Throwable e) {
+				Log.enable();
+				throw e;
+			}
 			
-			mainMethod.invoke(null, new Object[] {stringArgs});
+			Log.close();
 		}catch (Throwable e) {
 			throw new RuntimeException("Couldn't launch!", e);
 		}finally {
@@ -201,8 +207,16 @@ public class Updater {
 	public static void main(String... args) {
 		Utils.setSystemStyle();
 		
-		if(Minecraft.getMultiMcDirectory() != null) {
-			installerDirectory = Minecraft.getMultiMcDirectory();
+		File multiMcDirectory = Minecraft.getMultiMcDirectory();
+		if(multiMcDirectory != null) {
+			if(multiMcDirectory.getName().equals(".minecraft")) {
+				File parent = multiMcDirectory.getAbsoluteFile().getParentFile();
+				if(parent != null) {
+					installerDirectory = new File(parent, ".installer");
+				}else {
+					installerDirectory = multiMcDirectory;
+				}
+			}
 		}
 		
 		// Process args
@@ -221,12 +235,16 @@ public class Updater {
 		}
 		
 		logFile = new File(installerDirectory, "updater.log");
-		Log.enable(logFile);
+		Log.setup(logFile);
+		Log.enable();
 		
+		System.out.println("Installer directory: " + installerDirectory.getAbsolutePath());
 		if(installerFileOverride != null) {
 			System.out.println("Using installer file: " + installerFileOverride.getAbsolutePath());
 		}
 		if(offline) {
+			localVersionFile = new File(installerDirectory, "latest.info");
+			
 			System.out.println("Running in offline mode!");
 			System.out.println("Version check will use local file: " + localVersionFile.getAbsolutePath());
 		}
@@ -254,7 +272,7 @@ public class Updater {
 			
 			Utils.createErrorLog(msg, e);
 			
-			msg.append("\n\nThe full log has been saved at " + logFile.getAbsolutePath() + "!");
+			msg.append("\n\nThe full log has been saved at " + logFile.getAbsolutePath());
 			
 			new CrashHandler(msg.toString(), window.getFrame());
 		}
