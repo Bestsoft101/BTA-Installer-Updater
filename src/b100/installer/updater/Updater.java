@@ -9,7 +9,9 @@ import java.util.Map;
 
 import javax.swing.JProgressBar;
 
+import b100.installer.updater.Utils.JarFileInfo;
 import b100.installer.updater.Utils.ProgressListener;
+import net.minecraft.client.Minecraft;
 
 public class Updater {
 	
@@ -17,6 +19,8 @@ public class Updater {
 	private static File installerDirectory = null;
 	private static File logFile;
 	private static Window window;
+	private static File installerFileOverride = null;
+	private static File localVersionFile = new File("latest.info");
 	
 	public static boolean isOffline() {
 		return offline;
@@ -33,7 +37,7 @@ public class Updater {
 			Utils.downloadFileAndPrintProgress(url, file, null);
 			properties = ConfigUtil.loadPropertiesFile(file, '=');
 		}else {
-			properties = ConfigUtil.loadPropertiesInternal("/latest.info", '=');
+			properties = ConfigUtil.loadPropertiesFile(localVersionFile, '=');
 		}
 		
 		long endTime = System.currentTimeMillis();
@@ -64,7 +68,11 @@ public class Updater {
 		}
 		
 		File file = new File(installerDirectory, filename);
+		if(installerFileOverride != null) {
+			file = installerFileOverride;
+		}
 		System.out.println("Launch: " + file.getAbsolutePath());
+		window.setText("Launching installer");
 		
 		URLClassLoader classLoader = null;
 		try {
@@ -72,10 +80,15 @@ public class Updater {
 				throw new RuntimeException("File does not exist: " + file.getAbsolutePath() + "!");
 			}
 			
+			JarFileInfo jarFileInfo = Utils.readJarFile(file);
+			
 			classLoader = new URLClassLoader(new URL[] {new URL("jar:file:" + file.getAbsolutePath() + "!/")});
 			
-			String mainClassName = Utils.readMainClassFromJarFile(file);
-			Class<?> mainClass = classLoader.loadClass(mainClassName);
+			for(String className : jarFileInfo.allClassNames) {
+				classLoader.loadClass(className);
+			}
+			
+			Class<?> mainClass = classLoader.loadClass(jarFileInfo.mainClass);
 			System.out.println("Main Class: " + mainClass);
 			
 			Method mainMethod = mainClass.getDeclaredMethod("main", String[].class);
@@ -188,14 +201,21 @@ public class Updater {
 	public static void main(String... args) {
 		Utils.setSystemStyle();
 		
+		if(Minecraft.getMultiMcDirectory() != null) {
+			installerDirectory = Minecraft.getMultiMcDirectory();
+		}
+		
 		// Process args
 		for(int i=0; i < args.length; i++) {
 			if(args[i].equals("--offline")) {
 				offline = true;
 			}else if(args[i].equals("--dir")) {
 				installerDirectory = new File(args[++i]);
+			}else if(args[i].equals("--installerfile")) {
+				installerFileOverride = new File(args[++i]);
 			}
 		}
+		
 		if(installerDirectory == null) {
 			installerDirectory = Utils.getAppDirectory("bta-installer");
 		}
@@ -203,8 +223,12 @@ public class Updater {
 		logFile = new File(installerDirectory, "updater.log");
 		Log.enable(logFile);
 		
+		if(installerFileOverride != null) {
+			System.out.println("Using installer file: " + installerFileOverride.getAbsolutePath());
+		}
 		if(offline) {
-			System.out.println("Running in Offline Mode!");
+			System.out.println("Running in offline mode!");
+			System.out.println("Version check will use local file: " + localVersionFile.getAbsolutePath());
 		}
 		
 		System.out.println("Installer Directory: " + installerDirectory.getAbsolutePath());

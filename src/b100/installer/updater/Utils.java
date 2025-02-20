@@ -10,6 +10,9 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -186,16 +189,31 @@ public class Utils {
 		}
 	}
 	
-	public static String readMainClassFromJarFile(File file) {
+	public static JarFileInfo readJarFile(File file) {
+		JarFileInfo jarFileInfo = new JarFileInfo();
+		jarFileInfo.allClassNames = new ArrayList<>();
+		
 		ZipFile zipFile = null;
 		try {
 			zipFile = new ZipFile(file);
+
+			// Find all class names
+			Enumeration<? extends ZipEntry> entries = zipFile.entries();
+			while(entries.hasMoreElements()) {
+				ZipEntry entry = entries.nextElement();
+				
+				if(entry.getName().toLowerCase().endsWith(".class")) {
+					String className = entry.getName().replace('/', '.');
+					className = className.substring(0, className.length() - 6);
+					jarFileInfo.allClassNames.add(className);
+				}
+			}
 			
+			// Find main class
 			ZipEntry entry = zipFile.getEntry("META-INF/MANIFEST.MF");
 			if(entry == null) {
 				throw new RuntimeException("Jar file is missing manifest!");
 			}
-			
 			InputStream in = null;
 			try {
 				in = zipFile.getInputStream(entry);
@@ -206,7 +224,7 @@ public class Utils {
 					throw new RuntimeException("Manifest is missing main class!");
 				}
 				
-				return mainClass.trim();
+				jarFileInfo.mainClass = mainClass.trim();
 			}finally {
 				in.close();
 			}
@@ -217,6 +235,13 @@ public class Utils {
 				zipFile.close();
 			}catch (Exception e) {}
 		}
+		
+		return jarFileInfo;
+	}
+	
+	public static class JarFileInfo {
+		public List<String> allClassNames;
+		public String mainClass;
 	}
 	
 	public static interface ProgressListener {
