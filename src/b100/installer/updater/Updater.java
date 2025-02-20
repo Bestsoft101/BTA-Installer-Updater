@@ -97,6 +97,8 @@ public class Updater {
 				installerDirectory.getAbsolutePath()
 			};
 			
+			window.dispose();
+			
 			try {
 				Log.disable();
 				mainMethod.invoke(null, new Object[] {stringArgs});	
@@ -239,6 +241,7 @@ public class Updater {
 		Log.enable();
 		
 		System.out.println("Installer directory: " + installerDirectory.getAbsolutePath());
+		
 		if(installerFileOverride != null) {
 			System.out.println("Using installer file: " + installerFileOverride.getAbsolutePath());
 		}
@@ -248,8 +251,6 @@ public class Updater {
 			System.out.println("Running in offline mode!");
 			System.out.println("Version check will use local file: " + localVersionFile.getAbsolutePath());
 		}
-		
-		System.out.println("Installer Directory: " + installerDirectory.getAbsolutePath());
 		
 		try {
 			window = new Window("Checking for update...");

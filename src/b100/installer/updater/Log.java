@@ -37,7 +37,7 @@ public class Log {
 			writer = new OutputStreamWriter(out);
 			
 			customOut = new LogPrintStream(System.out, "[OUT] ");
-			customErr = new LogPrintStream(System.out, "[ERR] ");
+			customErr = new LogPrintStream(System.err, "[ERR] ");
 			
 			isSetup = true;
 		}catch (Exception e) {
