@@ -48,4 +48,36 @@ public class CrashHandler {
 		frame.setVisible(true);
 	}
 	
+	public static String createErrorLog(Throwable throwable) {
+		StringBuilder str = new StringBuilder();
+		
+		createErrorLog(str, throwable);
+		
+		return str.toString();
+	}
+	
+	public static void createErrorLog(StringBuilder str, Throwable throwable) {
+		str.append(throwable.getClass().getName());
+		
+		String message = throwable.getMessage();
+		if(message != null) {
+			str.append(": ").append(message);
+		}
+		
+		StackTraceElement[] stackTrace = throwable.getStackTrace();
+		
+		for(int i=0; i < stackTrace.length; i++) {
+			StackTraceElement element = stackTrace[i];
+			
+			str.append('\n').append("    at ").append(element);
+		}
+		
+		Throwable cause = throwable.getCause();
+		if(cause != null) {
+			str.append("\nCaused by: ");
+			
+			createErrorLog(str, cause);
+		}
+	}
+	
 }

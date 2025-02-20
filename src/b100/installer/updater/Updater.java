@@ -270,7 +270,7 @@ public class Updater {
 			
 			msg.append("The updater has crashed!\n\n");
 			
-			Utils.createErrorLog(msg, e);
+			CrashHandler.createErrorLog(msg, e);
 			
 			msg.append("\n\nThe full log has been saved at " + logFile.getAbsolutePath());
 			
