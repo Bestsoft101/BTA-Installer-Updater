@@ -32,7 +32,7 @@ public class Updater {
 		Map<String, String> properties = null;
 		
 		if(!offline) {
-			String url = "https://raw.githubusercontent.com/Bestsoft101/BTA-Installer-Updater/main/src/latest.info";
+			String url = "https://raw.githubusercontent.com/Bestsoft101/BTA-Installer-Updater/main/latest.info";
 			File file = new File(installerDirectory, "latest.info");
 			Utils.downloadFileAndPrintProgress(url, file, null);
 			properties = ConfigUtil.loadPropertiesFile(file, '=');
